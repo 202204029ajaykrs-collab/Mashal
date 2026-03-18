@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Masahal — App Architecture & Flow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f5f4ef;
+      --color-background-tertiary: #eeede8;
+      --color-text-primary: #1a1a18;
+      --color-text-secondary: #5a5a56;
+      --color-text-tertiary: #9a9990;
+      --color-border-tertiary: rgba(0,0,0,0.10);
+      --color-border-secondary: rgba(0,0,0,0.18);
+      --color-border-primary: rgba(0,0,0,0.28);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --border-radius-md: 8px;
+      --border-radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-background-primary: #1c1c1a;
+        --color-background-secondary: #242422;
+        --color-background-tertiary: #2c2c2a;
+        --color-text-primary: #e8e6de;
+        --color-text-secondary: #a8a69e;
+        --color-text-tertiary: #686660;
+        --color-border-tertiary: rgba(255,255,255,0.08);
+        --color-border-secondary: rgba(255,255,255,0.15);
+        --color-border-primary: rgba(255,255,255,0.25);
+      }
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-background-tertiary);
+      color: var(--color-text-primary);
+      padding: 24px 16px 40px;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: var(--color-background-primary);
+      border-radius: 16px;
+      padding: 24px 20px;
+      max-width: 860px;
+      margin: 0 auto;
+      border: 1px solid var(--color-border-tertiary);
+    }
+
+    /* SVG theme classes */
+    svg text { font-family: var(--font-sans); }
+    svg .t  { font-size: 14px; font-weight: 400; fill: var(--color-text-primary); }
+    svg .ts { font-size: 12px; font-weight: 400; fill: var(--color-text-secondary); }
+    svg .th { font-size: 14px; font-weight: 500; fill: var(--color-text-primary); }
+    svg .arr { stroke: var(--color-text-tertiary); stroke-width: 1.5; fill: none; }
+    svg .leader { stroke: var(--color-text-tertiary); stroke-width: 0.5; stroke-dasharray: 3 3; fill: none; }
+    svg .box { fill: var(--color-background-secondary); stroke: var(--color-border-secondary); }
+    svg .node { cursor: pointer; }
+    svg .node:hover { opacity: 0.82; }
+
+    /* Color ramps */
+    svg .c-purple rect, svg .c-purple circle, svg .c-purple ellipse { fill: #EEEDFE; stroke: #534AB7; }
+    svg .c-purple .th { fill: #3C3489; } svg .c-purple .ts { fill: #534AB7; }
+    svg .c-teal   rect, svg .c-teal   circle, svg .c-teal   ellipse { fill: #E1F5EE; stroke: #0F6E56; }
+    svg .c-teal   .th { fill: #085041; } svg .c-teal   .ts { fill: #0F6E56; }
+    svg .c-coral  rect, svg .c-coral  circle, svg .c-coral  ellipse { fill: #FAECE7; stroke: #993C1D; }
+    svg .c-coral  .th { fill: #712B13; } svg .c-coral  .ts { fill: #993C1D; }
+    svg .c-pink   rect, svg .c-pink   circle, svg .c-pink   ellipse { fill: #FBEAF0; stroke: #993556; }
+    svg .c-pink   .th { fill: #72243E; } svg .c-pink   .ts { fill: #993556; }
+    svg .c-gray   rect, svg .c-gray   circle, svg .c-gray   ellipse { fill: var(--color-background-secondary); stroke: var(--color-border-primary); }
+    svg .c-gray   .th { fill: var(--color-text-primary); } svg .c-gray .ts { fill: var(--color-text-secondary); }
+    svg .c-blue   rect, svg .c-blue   circle, svg .c-blue   ellipse { fill: #E6F1FB; stroke: #185FA5; }
+    svg .c-blue   .th { fill: #0C447C; } svg .c-blue   .ts { fill: #185FA5; }
+    svg .c-amber  rect, svg .c-amber  circle, svg .c-amber  ellipse { fill: #FAEEDA; stroke: #854F0B; }
+    svg .c-amber  .th { fill: #633806; } svg .c-amber  .ts { fill: #854F0B; }
+    svg .c-green  rect, svg .c-green  circle, svg .c-green  ellipse { fill: #EAF3DE; stroke: #3B6D11; }
+    svg .c-green  .th { fill: #27500A; } svg .c-green  .ts { fill: #3B6D11; }
+
+    @media (prefers-color-scheme: dark) {
+      svg .c-purple rect, svg .c-purple circle, svg .c-purple ellipse { fill: #3C3489; stroke: #AFA9EC; }
+      svg .c-purple .th { fill: #EEEDFE; } svg .c-purple .ts { fill: #CECBF6; }
+      svg .c-teal   rect, svg .c-teal   circle, svg .c-teal   ellipse { fill: #085041; stroke: #5DCAA5; }
+      svg .c-teal   .th { fill: #E1F5EE; } svg .c-teal   .ts { fill: #9FE1CB; }
+      svg .c-coral  rect, svg .c-coral  circle, svg .c-coral  ellipse { fill: #712B13; stroke: #F0997B; }
+      svg .c-coral  .th { fill: #FAECE7; } svg .c-coral  .ts { fill: #F5C4B3; }
+      svg .c-pink   rect, svg .c-pink   circle, svg .c-pink   ellipse { fill: #72243E; stroke: #ED93B1; }
+      svg .c-pink   .th { fill: #FBEAF0; } svg .c-pink   .ts { fill: #F4C0D1; }
+      svg .c-blue   rect, svg .c-blue   circle, svg .c-blue   ellipse { fill: #0C447C; stroke: #85B7EB; }
+      svg .c-blue   .th { fill: #E6F1FB; } svg .c-blue   .ts { fill: #B5D4F4; }
+      svg .c-amber  rect, svg .c-amber  circle, svg .c-amber  ellipse { fill: #633806; stroke: #EF9F27; }
+      svg .c-amber  .th { fill: #FAEEDA; } svg .c-amber  .ts { fill: #FAC775; }
+    }
+
+    :root { --gap: 14px; }
+
+    .section-label {
+      font-size: 10px; font-weight: 500; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--color-text-tertiary);
+      margin: 18px 0 6px 4px;
+    }
+    .tabs {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 16px; padding: 0 2px;
+    }
+    .tab {
+      padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      cursor: pointer; border: 1.5px solid var(--color-border-secondary);
+      background: var(--color-background-secondary); color: var(--color-text-secondary);
+      transition: all .15s;
+    }
+    .tab.active { background: #534AB7; border-color: #534AB7; color: #EEEDFE; }
+    .tab:hover:not(.active) { border-color: var(--color-border-primary); }
+    .diagram-wrap { width: 100%; overflow-x: auto; }
+    .pane { display: none; }
+    .pane.active { display: block; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div style="font-size:17px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px">Masahal — App Architecture & Flow</div>
+  <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:14px">Tap a section to explore the flow</div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="show('auth')">Auth & Onboarding</div>
+    <div class="tab" onclick="show('feed')">Feed & Video Pipeline</div>
+    <div class="tab" onclick="show('offline')">Offline / Sync</div>
+    <div class="tab" onclick="show('upload')">Upload Flow</div>
+    <div class="tab" onclick="show('tech')">Tech Stack</div>
+  </div>
+
+  <div class="diagram-wrap">
+
+    <!-- AUTH PANE -->
+    <div id="pane-auth" class="pane active">
+      <svg width="100%" viewBox="0 0 680 560" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+        <g class="c-purple">
+          <rect x="240" y="20" width="200" height="44" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="42" text-anchor="middle" dominant-baseline="central">App launch</text>
+        </g>
+        <line x1="340" y1="64" x2="340" y2="94" class="arr" marker-end="url(#a1)"/>
+        <g class="c-gray">
+          <rect x="220" y="94" width="240" height="44" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="116" text-anchor="middle" dominant-baseline="central">Auth check</text>
+        </g>
+        <line x1="220" y1="116" x2="130" y2="116" class="arr" marker-end="url(#a1)" stroke="var(--color-text-tertiary)" opacity=".5"/>
+        <text class="ts" x="175" y="110" text-anchor="middle">returning</text>
+        <line x1="460" y1="116" x2="550" y2="116" class="arr" marker-end="url(#a1)" stroke="var(--color-text-tertiary)" opacity=".5"/>
+        <text class="ts" x="505" y="110" text-anchor="middle">new user</text>
+        <g class="c-teal">
+          <rect x="50" y="94" width="80" height="44" rx="8" stroke-width="0.5"/>
+          <text class="th" x="90" y="116" text-anchor="middle" dominant-baseline="central">Main feed</text>
+        </g>
+        <g class="c-coral">
+          <rect x="510" y="94" width="120" height="44" rx="8" stroke-width="0.5"/>
+          <text class="th" x="570" y="116" text-anchor="middle" dominant-baseline="central">Sign up</text>
+        </g>
+        <line x1="570" y1="138" x2="570" y2="168" class="arr" marker-end="url(#a1)"/>
+        <g class="c-amber">
+          <rect x="490" y="168" width="160" height="40" rx="8" stroke-width="0.5"/>
+          <text class="th" x="570" y="188" text-anchor="middle" dominant-baseline="central">Google OAuth</text>
+        </g>
+        <g class="c-gray">
+          <rect x="310" y="168" width="160" height="40" rx="8" stroke-width="0.5"/>
+          <text class="th" x="390" y="188" text-anchor="middle" dominant-baseline="central">Manual signup</text>
+        </g>
+        <line x1="510" y1="138" x2="390" y2="168" class="arr" marker-end="url(#a1)" stroke="var(--color-text-tertiary)" opacity=".4"/>
+        <text class="ts" x="435" y="153" text-anchor="middle">or</text>
+        <line x1="390" y1="208" x2="390" y2="234" class="arr" marker-end="url(#a1)"/>
+        <g class="c-blue">
+          <rect x="260" y="234" width="260" height="140" rx="8" stroke-width="0.5"/>
+          <text class="th" x="390" y="256" text-anchor="middle" dominant-baseline="central">Registration steps</text>
+          <text class="ts" x="390" y="276" text-anchor="middle">1. Name + UserID + Password</text>
+          <text class="ts" x="390" y="296" text-anchor="middle">2. Email → OTP verification</text>
+          <text class="ts" x="390" y="316" text-anchor="middle">3. Phone → OTP via SMS</text>
+          <text class="ts" x="390" y="336" text-anchor="middle">4. Location (city/state)</text>
+          <text class="ts" x="390" y="356" text-anchor="middle">5. Account created ✓</text>
+        </g>
+        <line x1="570" y1="208" x2="570" y2="390" class="arr" marker-end="url(#a1)" stroke="var(--color-text-tertiary)" opacity=".4"/>
+        <line x1="390" y1="374" x2="390" y2="404" class="arr" marker-end="url(#a1)"/>
+        <g class="c-purple">
+          <rect x="240" y="404" width="310" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="395" y="424" text-anchor="middle" dominant-baseline="central">Interest selection screen</text>
+          <text class="ts" x="395" y="444" text-anchor="middle">Comedy · Politics · Education · Cooking · News · Mystery · Fitness…</text>
+        </g>
+        <line x1="395" y1="456" x2="395" y2="490" class="arr" marker-end="url(#a1)"/>
+        <g class="c-teal">
+          <rect x="275" y="490" width="240" height="44" rx="8" stroke-width="0.5"/>
+          <text class="th" x="395" y="512" text-anchor="middle" dominant-baseline="central">Go to main feed →</text>
+        </g>
+        <text class="ts" x="50" y="500" fill="var(--color-text-tertiary)" font-style="italic">Firebase Auth handles</text>
+        <text class="ts" x="50" y="516" fill="var(--color-text-tertiary)" font-style="italic">OTP + Google login</text>
+      </svg>
+    </div>
+
+    <!-- FEED PANE -->
+    <div id="pane-feed" class="pane">
+      <svg width="100%" viewBox="0 0 680 640" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+        <rect x="10" y="10" width="110" height="620" rx="10" fill="none" stroke="var(--color-border-tertiary)" stroke-dasharray="4 3" stroke-width="1"/>
+        <text class="ts" x="65" y="30" text-anchor="middle" fill="var(--color-text-tertiary)">Server</text>
+        <rect x="130" y="10" width="540" height="620" rx="10" fill="none" stroke="var(--color-border-tertiary)" stroke-dasharray="4 3" stroke-width="1"/>
+        <text class="ts" x="400" y="30" text-anchor="middle" fill="var(--color-text-tertiary)">User's device</text>
+        <g class="c-purple">
+          <rect x="18" y="50" width="96" height="52" rx="6" stroke-width="0.5"/>
+          <text class="th" x="66" y="70" text-anchor="middle" dominant-baseline="central">Reco</text>
+          <text class="ts" x="66" y="88" text-anchor="middle">engine</text>
+        </g>
+        <line x1="114" y1="76" x2="148" y2="76" class="arr" marker-end="url(#a2)"/>
+        <text class="ts" x="131" y="70" text-anchor="middle">sends</text>
+        <g class="c-blue">
+          <rect x="150" y="50" width="190" height="52" rx="6" stroke-width="0.5"/>
+          <text class="th" x="245" y="70" text-anchor="middle" dominant-baseline="central">Background downloader</text>
+          <text class="ts" x="245" y="88" text-anchor="middle">100 videos × 1-2 MB (compressed)</text>
+        </g>
+        <line x1="245" y1="102" x2="245" y2="130" class="arr" marker-end="url(#a2)"/>
+        <g class="c-gray">
+          <rect x="150" y="130" width="190" height="44" rx="6" stroke-width="0.5"/>
+          <text class="th" x="245" y="152" text-anchor="middle" dominant-baseline="central">Local video cache</text>
+        </g>
+        <line x1="340" y1="152" x2="390" y2="152" class="arr" marker-end="url(#a2)"/>
+        <g class="c-amber">
+          <rect x="392" y="130" width="200" height="44" rx="6" stroke-width="0.5"/>
+          <text class="th" x="492" y="152" text-anchor="middle" dominant-baseline="central">On-device decompressor</text>
+        </g>
+        <line x1="492" y1="174" x2="492" y2="208" class="arr" marker-end="url(#a2)"/>
+        <g class="c-teal">
+          <rect x="370" y="208" width="244" height="52" rx="6" stroke-width="0.5"/>
+          <text class="th" x="492" y="228" text-anchor="middle" dominant-baseline="central">Top 5 → instantly ready</text>
+          <text class="ts" x="492" y="246" text-anchor="middle">Full quality, zero wait</text>
+        </g>
+        <line x1="492" y1="260" x2="492" y2="294" class="arr" marker-end="url(#a2)"/>
+        <g class="c-coral">
+          <rect x="370" y="294" width="244" height="52" rx="6" stroke-width="0.5"/>
+          <text class="th" x="492" y="314" text-anchor="middle" dominant-baseline="central">Video player (30s – 1min)</text>
+          <text class="ts" x="492" y="332" text-anchor="middle">Autoplay, swipe up for next</text>
+        </g>
+        <line x1="370" y1="320" x2="300" y2="320" class="arr" marker-end="url(#a2)" stroke="var(--color-text-tertiary)" opacity=".5"/>
+        <text class="ts" x="335" y="314" text-anchor="middle">while</text>
+        <text class="ts" x="335" y="328" text-anchor="middle">watching</text>
+        <g class="c-blue">
+          <rect x="150" y="294" width="144" height="52" rx="6" stroke-width="0.5"/>
+          <text class="th" x="222" y="314" text-anchor="middle" dominant-baseline="central">Decompress 6-10</text>
+          <text class="ts" x="222" y="332" text-anchor="middle">in background</text>
+        </g>
+        <line x1="492" y1="346" x2="492" y2="380" class="arr" marker-end="url(#a2)"/>
+        <g class="c-purple">
+          <rect x="370" y="380" width="244" height="52" rx="6" stroke-width="0.5"/>
+          <text class="th" x="492" y="400" text-anchor="middle" dominant-baseline="central">User actions</text>
+          <text class="ts" x="492" y="418" text-anchor="middle">Like · Comment · Share · Follow</text>
+        </g>
+        <line x1="370" y1="406" x2="300" y2="406" class="arr" marker-end="url(#a2)" stroke="var(--color-text-tertiary)" opacity=".4"/>
+        <g class="c-gray">
+          <rect x="150" y="382" width="144" height="44" rx="6" stroke-width="0.5"/>
+          <text class="th" x="222" y="398" text-anchor="middle" dominant-baseline="central">Delete watched</text>
+          <text class="ts" x="222" y="414" text-anchor="middle">auto-clean cache</text>
+        </g>
+        <line x1="150" y1="404" x2="66" y2="404" class="arr" marker-end="url(#a2)" stroke="var(--color-text-tertiary)" opacity=".4"/>
+        <line x1="66" y1="404" x2="66" y2="102" class="arr" marker-end="url(#a2)" stroke="var(--color-text-tertiary)" opacity=".4"/>
+        <text class="ts" x="30" y="270" text-anchor="middle" fill="var(--color-text-tertiary)">refetch</text>
+        <g class="c-pink">
+          <rect x="150" y="490" width="464" height="52" rx="6" stroke-width="0.5"/>
+          <text class="th" x="382" y="510" text-anchor="middle" dominant-baseline="central">Addiction loop mechanics</text>
+          <text class="ts" x="382" y="528" text-anchor="middle">Autoplay · Sound on scroll · Dopamine comments · Streak rewards · Notifications</text>
+        </g>
+        <line x1="492" y1="432" x2="492" y2="490" class="arr" marker-end="url(#a2)"/>
+        <line x1="492" y1="432" x2="66" y2="432" stroke="var(--color-text-tertiary)" stroke-width="0.5" stroke-dasharray="3 3" fill="none" opacity=".5"/>
+        <line x1="66" y1="432" x2="66" y2="102" stroke="var(--color-text-tertiary)" stroke-width="0.5" stroke-dasharray="3 3" fill="none" opacity=".5"/>
+        <text class="ts" x="280" y="446" text-anchor="middle" fill="var(--color-text-tertiary)">signals feed reco engine (when online)</text>
+      </svg>
+    </div>
+
+    <!-- OFFLINE PANE -->
+    <div id="pane-offline" class="pane">
+      <svg width="100%" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+        <g class="c-gray">
+          <rect x="220" y="20" width="240" height="44" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="42" text-anchor="middle" dominant-baseline="central">Network monitor (always-on)</text>
+        </g>
+        <line x1="280" y1="64" x2="150" y2="110" class="arr" marker-end="url(#a3)" stroke="var(--color-text-tertiary)" opacity=".5"/>
+        <text class="ts" x="185" y="90" text-anchor="middle">no internet</text>
+        <line x1="400" y1="64" x2="530" y2="110" class="arr" marker-end="url(#a3)" stroke="var(--color-text-tertiary)" opacity=".5"/>
+        <text class="ts" x="495" y="90" text-anchor="middle">internet found</text>
+        <g class="c-coral">
+          <rect x="50" y="110" width="200" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="150" y="130" text-anchor="middle" dominant-baseline="central">Offline mode active</text>
+          <text class="ts" x="150" y="148" text-anchor="middle">plays pre-loaded videos</text>
+        </g>
+        <line x1="150" y1="162" x2="150" y2="196" class="arr" marker-end="url(#a3)"/>
+        <g class="c-amber">
+          <rect x="50" y="196" width="200" height="120" rx="8" stroke-width="0.5"/>
+          <text class="th" x="150" y="218" text-anchor="middle" dominant-baseline="central">Offline action queue</text>
+          <text class="ts" x="150" y="240" text-anchor="middle">→ Like saved locally</text>
+          <text class="ts" x="150" y="258" text-anchor="middle">→ Comment saved locally</text>
+          <text class="ts" x="150" y="276" text-anchor="middle">→ Follow saved locally</text>
+          <text class="ts" x="150" y="294" text-anchor="middle">→ Share saved locally</text>
+        </g>
+        <g class="c-teal">
+          <rect x="430" y="110" width="200" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="530" y="130" text-anchor="middle" dominant-baseline="central">Online mode active</text>
+          <text class="ts" x="530" y="148" text-anchor="middle">sync begins automatically</text>
+        </g>
+        <line x1="530" y1="162" x2="530" y2="196" class="arr" marker-end="url(#a3)"/>
+        <g class="c-blue">
+          <rect x="430" y="196" width="200" height="100" rx="8" stroke-width="0.5"/>
+          <text class="th" x="530" y="218" text-anchor="middle" dominant-baseline="central">Flush action queue</text>
+          <text class="ts" x="530" y="240" text-anchor="middle">POST likes to server</text>
+          <text class="ts" x="530" y="258" text-anchor="middle">POST comments to server</text>
+          <text class="ts" x="530" y="276" text-anchor="middle">POST follows to server</text>
+        </g>
+        <line x1="250" y1="256" x2="428" y2="256" class="arr" marker-end="url(#a3)" stroke="var(--color-text-tertiary)" opacity=".4" stroke-dasharray="5 3"/>
+        <text class="ts" x="340" y="250" text-anchor="middle" fill="var(--color-text-tertiary)">network restored</text>
+        <line x1="530" y1="296" x2="530" y2="340" class="arr" marker-end="url(#a3)"/>
+        <g class="c-purple">
+          <rect x="430" y="340" width="200" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="530" y="360" text-anchor="middle" dominant-baseline="central">Server updates</text>
+          <text class="ts" x="530" y="378" text-anchor="middle">reco model, counts, feed</text>
+        </g>
+        <line x1="530" y1="392" x2="530" y2="430" class="arr" marker-end="url(#a3)"/>
+        <g class="c-teal">
+          <rect x="430" y="430" width="200" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="530" y="450" text-anchor="middle" dominant-baseline="central">Download new video batch</text>
+          <text class="ts" x="530" y="468" text-anchor="middle">refill 100-video cache</text>
+        </g>
+        <g class="c-gray">
+          <rect x="50" y="380" width="200" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="150" y="398" text-anchor="middle" dominant-baseline="central">Device storage limit</text>
+          <text class="ts" x="150" y="418" text-anchor="middle">max ~150–200 MB reserved</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- UPLOAD PANE -->
+    <div id="pane-upload" class="pane">
+      <svg width="100%" viewBox="0 0 680 500" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="a4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+        <g class="c-gray">
+          <rect x="240" y="20" width="200" height="44" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="42" text-anchor="middle" dominant-baseline="central">User taps upload (+)</text>
+        </g>
+        <line x1="340" y1="64" x2="340" y2="94" class="arr" marker-end="url(#a4)"/>
+        <g class="c-blue">
+          <rect x="210" y="94" width="260" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="114" text-anchor="middle" dominant-baseline="central">Select video (camera or gallery)</text>
+          <text class="ts" x="340" y="132" text-anchor="middle">duration: 30 sec – 1 min max</text>
+        </g>
+        <line x1="340" y1="146" x2="340" y2="180" class="arr" marker-end="url(#a4)"/>
+        <g class="c-amber">
+          <rect x="200" y="180" width="280" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="200" text-anchor="middle" dominant-baseline="central">On-device FFmpeg compression</text>
+          <text class="ts" x="340" y="218" text-anchor="middle">original → 1-2 MB compressed version</text>
+        </g>
+        <line x1="340" y1="232" x2="340" y2="266" class="arr" marker-end="url(#a4)"/>
+        <g class="c-gray">
+          <rect x="200" y="266" width="280" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="286" text-anchor="middle" dominant-baseline="central">Add caption + category tags</text>
+          <text class="ts" x="340" y="304" text-anchor="middle">Comedy, Education, News…</text>
+        </g>
+        <line x1="340" y1="318" x2="340" y2="352" class="arr" marker-end="url(#a4)"/>
+        <g class="c-coral">
+          <rect x="200" y="352" width="280" height="52" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="372" text-anchor="middle" dominant-baseline="central">Upload to server</text>
+          <text class="ts" x="340" y="390" text-anchor="middle">Node.js API → Cloudinary → MongoDB</text>
+        </g>
+        <line x1="340" y1="404" x2="340" y2="438" class="arr" marker-end="url(#a4)"/>
+        <g class="c-teal">
+          <rect x="190" y="438" width="300" height="44" rx="8" stroke-width="0.5"/>
+          <text class="th" x="340" y="460" text-anchor="middle" dominant-baseline="central">Video enters recommendation pool ✓</text>
+        </g>
+        <text class="ts" x="530" y="200" fill="var(--color-text-tertiary)" font-style="italic">Original NOT stored</text>
+        <text class="ts" x="530" y="216" fill="var(--color-text-tertiary)" font-style="italic">on device after upload</text>
+      </svg>
+    </div>
+
+    <!-- TECH PANE -->
+    <div id="pane-tech" class="pane">
+      <svg width="100%" viewBox="0 0 680 500" xmlns="http://www.w3.org/2000/svg">
+        <text class="th" x="340" y="28" text-anchor="middle">Recommended tech stack (minimum cost)</text>
+        <g class="c-purple"><rect x="20" y="50" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="80" y="72" text-anchor="middle" dominant-baseline="central">Mobile app</text></g>
+        <g class="c-purple"><rect x="160" y="50" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="220" y="62" text-anchor="middle" dominant-baseline="central">React Native</text><text class="ts" x="220" y="80" text-anchor="middle">iOS + Android</text></g>
+        <g class="c-gray"><rect x="300" y="50" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="360" y="62" text-anchor="middle" dominant-baseline="central">Web app</text><text class="ts" x="360" y="80" text-anchor="middle">React.js</text></g>
+        <text class="ts" x="490" y="72" dominant-baseline="central" fill="var(--color-text-secondary)">Free · one codebase for mobile</text>
+        <g class="c-blue"><rect x="20" y="116" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="80" y="138" text-anchor="middle" dominant-baseline="central">Backend API</text></g>
+        <g class="c-blue"><rect x="160" y="116" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="220" y="128" text-anchor="middle" dominant-baseline="central">Node.js +</text><text class="ts" x="220" y="146" text-anchor="middle">Express.js</text></g>
+        <text class="ts" x="300" y="138" dominant-baseline="central" fill="var(--color-text-secondary)">Free · runs on Render.com free tier</text>
+        <g class="c-teal"><rect x="20" y="182" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="80" y="204" text-anchor="middle" dominant-baseline="central">Database</text></g>
+        <g class="c-teal"><rect x="160" y="182" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="220" y="194" text-anchor="middle" dominant-baseline="central">MongoDB Atlas</text><text class="ts" x="220" y="212" text-anchor="middle">free 512 MB</text></g>
+        <text class="ts" x="300" y="204" dominant-baseline="central" fill="var(--color-text-secondary)">Free tier · stores user data + metadata</text>
+        <g class="c-amber"><rect x="20" y="248" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="80" y="270" text-anchor="middle" dominant-baseline="central">Video storage</text></g>
+        <g class="c-amber"><rect x="160" y="248" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="220" y="260" text-anchor="middle" dominant-baseline="central">Cloudinary</text><text class="ts" x="220" y="278" text-anchor="middle">free 25 GB</text></g>
+        <text class="ts" x="300" y="270" dominant-baseline="central" fill="var(--color-text-secondary)">Free · video transforms built-in</text>
+        <g class="c-coral"><rect x="20" y="314" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="80" y="336" text-anchor="middle" dominant-baseline="central">Auth + OTP</text></g>
+        <g class="c-coral"><rect x="160" y="314" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="220" y="326" text-anchor="middle" dominant-baseline="central">Firebase Auth</text><text class="ts" x="220" y="344" text-anchor="middle">+ Twilio (OTP)</text></g>
+        <text class="ts" x="300" y="336" dominant-baseline="central" fill="var(--color-text-secondary)">Free tier covers early users</text>
+        <g class="c-pink"><rect x="20" y="380" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="80" y="402" text-anchor="middle" dominant-baseline="central">Compression</text></g>
+        <g class="c-pink"><rect x="160" y="380" width="120" height="44" rx="6" stroke-width="0.5"/><text class="th" x="220" y="392" text-anchor="middle" dominant-baseline="central">FFmpeg</text><text class="ts" x="220" y="410" text-anchor="middle">server + device</text></g>
+        <text class="ts" x="300" y="402" dominant-baseline="central" fill="var(--color-text-secondary)">Free · open source · battle tested</text>
+        <g class="c-gray"><rect x="20" y="444" width="640" height="40" rx="6" stroke-width="0.5"/><text class="ts" x="340" y="464" text-anchor="middle" dominant-baseline="central">Total infra cost at launch: ~₹0 · Store fees: ₹2800 (Play) + ₹8300/yr (App Store) · Domain: free (1yr)</text></g>
+      </svg>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('pane-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
